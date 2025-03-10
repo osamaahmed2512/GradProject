@@ -148,7 +148,7 @@ namespace GraduationProject.Controllers
 
         [HttpPut("UpdateUser/{id}")]
         [Authorize("InstuctandandadminandstudentPolicy")]
-        public IActionResult UpdateUser(int id,[FromBody] UpdateUserDto UpdateDto)
+        public IActionResult UpdateUser(int id, UpdateUserDto UpdateDto)
         {
             
             var user = _context.users.FirstOrDefault(m => m.Id == id);
@@ -180,7 +180,7 @@ namespace GraduationProject.Controllers
         }
              [HttpPost]
              [Route("Register")]
-            public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
+            public async Task<IActionResult> Register( RegisterDto registerDto)
             {
                
             // Validate the request data
@@ -199,19 +199,22 @@ namespace GraduationProject.Controllers
                 {
                     return Conflict(new { Message = "Email already in use" });
                 }
-                if (registerDto.Role != "admin" || registerDto.Role != "student" || registerDto.Role != "teacher")
+                if (registerDto.Role != "admin" && registerDto.Role != "student" && registerDto.Role != "teacher")
                 {
                     return BadRequest(new { Message = "Role must be an admin or student or teacher" });
                 }
-            // Validate SkillLevel for students
-            if (registerDto.Role == "student")
-            {
-                var allowedSkillLevels = new[] { "Beginner", "Intermediate", "Advanced" };
-                if (string.IsNullOrWhiteSpace(registerDto.SkillLevel) || !allowedSkillLevels.Contains(registerDto.SkillLevel, StringComparer.OrdinalIgnoreCase))
+                  // Validate SkillLevel for students
+                if (registerDto.Role == "student")
                 {
+                    var allowedSkillLevels = new[] { "Beginner", "Intermediate", "Advanced" };
+                   if (string.IsNullOrWhiteSpace(registerDto.SkillLevel) || !allowedSkillLevels.Contains(registerDto.SkillLevel, StringComparer.OrdinalIgnoreCase))
+                   {
                     return BadRequest(new { Message = "SkillLevel must be one of: Beginner, Intermediate, Advanced" });
+                  
+                
+                   }
+
                 }
-            }
 
 
             string cvUrl = null;
@@ -253,9 +256,7 @@ namespace GraduationProject.Controllers
                     PreferredCategory = registerDto.Role == "student" ? registerDto.PreferredCategory:null ,
                     SkillLevel = registerDto.Role== "student"?registerDto.SkillLevel:null
                 };
-            // Debugging: Log the new user object
-            Console.WriteLine($"New User - PreferredCategory: {newUser.PreferredCategory}");
-            Console.WriteLine($"New User - SkillLevel: {newUser.SkillLevel}");
+            
 
             // Save the user to the database
             _context.users.Add(newUser);

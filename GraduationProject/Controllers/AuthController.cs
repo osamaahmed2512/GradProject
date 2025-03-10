@@ -180,7 +180,7 @@ namespace GraduationProject.Controllers
         }
         [HttpPost]
             [Route("Register")]
-            public async Task<IActionResult> Register(RegisterDto registerDto)
+            public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
             {
                 Console.WriteLine($"PreferredCategory: {registerDto.PreferredCategory}");
                 Console.WriteLine($"SkillLevel: {registerDto.SkillLevel}");

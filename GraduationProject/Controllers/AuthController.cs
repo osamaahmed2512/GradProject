@@ -178,14 +178,13 @@ namespace GraduationProject.Controllers
             return Ok(new { Message = "User updated successfully" });
 
         }
-        [HttpPost]
-            [Route("Register")]
+             [HttpPost]
+             [Route("Register")]
             public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
             {
-                Console.WriteLine($"PreferredCategory: {registerDto.PreferredCategory}");
-                Console.WriteLine($"SkillLevel: {registerDto.SkillLevel}");
+               
             // Validate the request data
-            if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.Email) || string.IsNullOrWhiteSpace(registerDto.Password))
+                if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.Email) || string.IsNullOrWhiteSpace(registerDto.Password))
                 {
                     return BadRequest(new { Message = "Invalid request data" });
                 }
@@ -199,6 +198,10 @@ namespace GraduationProject.Controllers
                 if (_context.users.Any(u => u.Email == registerDto.Email))
                 {
                     return Conflict(new { Message = "Email already in use" });
+                }
+                if (registerDto.Role != "admin" || registerDto.Role != "student" || registerDto.Role != "teacher")
+                {
+                    return BadRequest(new { Message = "Role must be an admin or student or teacher" });
                 }
             // Validate SkillLevel for students
             if (registerDto.Role == "student")

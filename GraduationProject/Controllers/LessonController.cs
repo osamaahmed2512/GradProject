@@ -89,6 +89,7 @@ namespace GraduationProject.Controllers
                 lesson.Name = lessonDto.Title;
             }
 
+
             if (!string.IsNullOrEmpty(lessonDto.Description))
             {
                 lesson.Description = lessonDto.Description;

@@ -1,4 +1,5 @@
-
+using Polly;
+using Polly.Extensions.Http;
 using GraduationProject.data;
 using Microsoft.EntityFrameworkCore;
 using GraduationProject.models;
@@ -8,6 +9,9 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using GraduationProject.Services;
+using System.Text.Json.Serialization;
+using System.Text.Json;
+using Microsoft.AspNetCore.Http.Json;
 
 namespace GraduationProject
 {
@@ -54,9 +58,40 @@ namespace GraduationProject
                         }
                     };
                 });
+
             // Add services to the container.
-            builder.Services.AddControllers();
-            builder.Services.AddHttpClient<RecommendationService>();
+            builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+            {
+                options.SerializerOptions.PropertyNameCaseInsensitive = true;
+                options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                options.SerializerOptions.WriteIndented = true;
+                options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
+            });
+
+            // Add services to the container.
+            builder.Services.AddControllers()
+                    .AddJsonOptions(options =>
+                    {
+                        options.JsonSerializerOptions.PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy();
+                        options.JsonSerializerOptions.DictionaryKeyPolicy = new JsonSnakeCaseNamingPolicy();
+                    });
+            // Configure JSON options for MVC
+            builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(options =>
+            {
+                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+                options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                options.JsonSerializerOptions.WriteIndented = true;
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
+            });
+            // Configure HttpClient with proper serialization
+            builder.Services.AddHttpClient<RecommendationService>(client =>
+            {
+                client.BaseAddress = new Uri("http://localhost:8000/");
+                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
 
             builder.Services.AddAuthorization(options =>
             {

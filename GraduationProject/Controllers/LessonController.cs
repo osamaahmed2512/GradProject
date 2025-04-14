@@ -168,6 +168,7 @@ namespace GraduationProject.Controllers
         // POST: api/Lesson
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
+        [Authorize(Policy = "InstructorAndAdminPolicy")]
         public async Task<ActionResult<Lesson>> Addlesson([FromForm] LessonDto lessonDto)
         {
             if (lessonDto.video == null || lessonDto.video.Length == 0)

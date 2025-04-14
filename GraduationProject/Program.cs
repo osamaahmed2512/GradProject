@@ -55,6 +55,14 @@ namespace GraduationProject
                                 context.Response.Headers.Add("IS-TOKEN-EXPIRED", "true");
                             }
                             return Task.CompletedTask;
+                        },
+                        OnChallenge = context =>
+                        {
+                            context.HandleResponse();
+                            context.Response.StatusCode = 401;
+                            context.Response.ContentType = "application/json";
+                            var result = System.Text.Json.JsonSerializer.Serialize(new { message = "Please enter the token" , StatusCode = StatusCodes.Status401Unauthorized  });
+                            return context.Response.WriteAsync(result);
                         }
                     };
                 });
@@ -70,9 +78,13 @@ namespace GraduationProject
             });
 
             // Add services to the container.
-            builder.Services.AddControllers()
+            builder.Services.AddControllers(options =>
+            {
+                options.Filters.Add<CustomModelStateFilter>();
+            })
                     .AddJsonOptions(options =>
                     {
+                        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
                         options.JsonSerializerOptions.PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy();
                         options.JsonSerializerOptions.DictionaryKeyPolicy = new JsonSnakeCaseNamingPolicy();
                     });
@@ -81,7 +93,7 @@ namespace GraduationProject
             {
                 options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
-                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
                 options.JsonSerializerOptions.WriteIndented = true;
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
             });
@@ -128,6 +140,7 @@ namespace GraduationProject
             });
              Xabe.FFmpeg.Downloader.FFmpegDownloader.GetLatestVersion(Xabe.FFmpeg.Downloader.FFmpegVersion.Official);
 
+            builder.Services.AddScoped(typeof(IGenaricRepository<>), typeof(GenaricRepository<>));
 
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<EmailService>();
@@ -179,6 +192,7 @@ namespace GraduationProject
             builder.WebHost.
                 ConfigureKestrel(
                 options => options.Limits.MaxRequestBodySize = 100 * 1024 * 1024);
+            builder.Services.AddScoped<CustomModelStateFilter>(); 
 
             var app = builder.Build();
 

@@ -1,10 +1,13 @@
-﻿namespace GraduationProject.Dto
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace GraduationProject.Dto
 {
     public class CourseDto
     {
         public string Name { get; set; }
         public string Describtion { get; set; }
         public string CourseCategory { get; set; }
+        [Required(ErrorMessage ="error message course is required")]
         public IFormFile Image { get; set; }
         public List<string> Tag { get; set; } = new List<string>();
         public string LevelOfCourse { get; set; }

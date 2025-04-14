@@ -92,9 +92,14 @@ namespace GraduationProject.data
           .HasOne(vp => vp.Student)
           .WithMany()
           .HasForeignKey(vp => vp.StudentId)
-          .OnDelete(DeleteBehavior.NoAction); 
+          .OnDelete(DeleteBehavior.NoAction);
 
-          base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<FlashCard>()
+                .HasOne(f => f.User)
+                .WithMany(u => u.FlashCards)
+                .HasForeignKey(f => f.UserId);
+
+            base.OnModelCreating(modelBuilder);
         }
 
         public DbSet<User> users { get; set; }
@@ -111,5 +116,7 @@ namespace GraduationProject.data
         public DbSet<Section> Sections { get; set; }
         public DbSet<Subscription> Subscriptions { get; set; }
         public DbSet<VideoProgress> VideoProgress { get; set; }
+        public DbSet<FlashCard> Flashcards { get; set; }
+        public DbSet<User> Users { get; set; }
     }
 }

@@ -4,6 +4,7 @@ using GraduationProject.data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GraduationProject.Migrations
 {
     [DbContext(typeof(AppDBContext))]
-    partial class AppDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250410132133_add_flashcard")]
+    partial class add_flashcard
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -376,10 +379,6 @@ namespace GraduationProject.Migrations
                     b.Property<string>("SkillLevel")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.HasKey("Id");
 
                     b.ToTable("User");
@@ -464,7 +463,7 @@ namespace GraduationProject.Migrations
             modelBuilder.Entity("GraduationProject.models.FlashCard", b =>
                 {
                     b.HasOne("GraduationProject.models.User", "User")
-                        .WithMany("FlashCards")
+                        .WithMany("Flashcards")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -599,7 +598,7 @@ namespace GraduationProject.Migrations
                 {
                     b.Navigation("Courses");
 
-                    b.Navigation("FlashCards");
+                    b.Navigation("Flashcards");
 
                     b.Navigation("Rating");
                 });

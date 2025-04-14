@@ -12,13 +12,14 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using NuGet.Protocol.Plugins;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Security.Claims;
 using System.Text;
 
 
 namespace GraduationProject.Controllers
 {
-
+    [ApiController]
     [Route("api/[controller]")]
     public class AuthController : Controller
     {
@@ -41,17 +42,15 @@ namespace GraduationProject.Controllers
         public IActionResult Login(LoginDto loginDto)
         {
             if (loginDto == null)
-                return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Invalid request data"));
-                //return BadRequest(new { Message = "Invalid request data" });
-                
+                return BadRequest(new {statuscode= StatusCodes.Status400BadRequest, Message = "Invalid request data" });
 
             var user = _context.users.FirstOrDefault(x => x.Email == loginDto.Email && x.Password == loginDto.Password);
-
+            
             if (user != null) {
+                
                 if (user.Role == "teacher" && !user.IsApproved)
                 {
-                    return Unauthorized(ApiResponse<object>.Error(ApiStatusCodes.Unauthorized, "Your account is pending approval by the admin."));
-                    //return Unauthorized(new { Message = "Your account is pending approval by the admin." });
+                    return Unauthorized(new { statuscode = StatusCodes.Status401Unauthorized, Message = "Your account is pending approval by the admin." });
                 }
                 var claims = new[]
                 {
@@ -73,13 +72,11 @@ namespace GraduationProject.Controllers
                 string TokenValue = new JwtSecurityTokenHandler().WriteToken(Token);
 
 
-                //return Ok(new { token = TokenValue, user = user });
-                return Ok(ApiResponse<object>.Ok(new {Token= TokenValue , User=user}));
+                return Ok(new { statuscode = StatusCodes.Status200OK, token = TokenValue, user = user });
 
 
             }
-            return Unauthorized(ApiResponse<object>.Error(ApiStatusCodes.Unauthorized, "Invalid email or password"));
-            //return Unauthorized(new { Message = "Invalid email or password" });
+            return Unauthorized(new { statuscode = StatusCodes.Status400BadRequest, Message = "Invalid email or password" });
         }
 
 
@@ -116,11 +113,10 @@ namespace GraduationProject.Controllers
         [Route("GetUserById/{id}")]
         public IActionResult GetUserById(int id)
         {
-            //if (id == 0) return BadRequest("invalid input data");
-            if (id == 0) return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "invalid input data"));
+            if (id == 0) return BadRequest("invalid input data");
             var user = _context.users.AsNoTracking().FirstOrDefault(x => x.Id == id);
-            if (user == null) return NotFound(ApiResponse<object>.Error(ApiStatusCodes.NotFound, "User not found"));
-            return Ok(ApiResponse<User>.Ok(user));
+            if (user == null) return BadRequest("user not found");
+            return Ok(user);
         }
 
         [HttpDelete("DeleteUser/{id}")]
@@ -130,15 +126,13 @@ namespace GraduationProject.Controllers
             var user = _context.users.FirstOrDefault(u => u.Id == id);
             if (user == null)
             {
-                //return NotFound(new { Message = "User not found" });
-                return NotFound(ApiResponse<object>.Error(ApiStatusCodes.NotFound, "User not found"));
+                return NotFound(new { Message = "User not found" });
             }
 
             _context.users.Remove(user);
             _context.SaveChanges();
 
-            return Ok(ApiResponse<object>.Ok(null, "User deleted successfully"));
-           // return Ok(new { Message = "User deleted successfully" });
+            return Ok(new { Message = "User deleted successfully" });
         }
         [HttpGet]
         [Route("Getallusers")]
@@ -148,38 +142,66 @@ namespace GraduationProject.Controllers
 
             if (users == null || users.Count() == 0)
             {
-                //return NotFound(new { message = "No User Found" });
-                return NotFound(ApiResponse<object>.Error(ApiStatusCodes.NotFound, "No User Found"));
+                return NotFound(new { message = "No User Found" });
             }
-            //return Ok(users);
-            return Ok(ApiResponse<List<User>>.Ok(users));
+            return Ok(users);
 
         }
 
-        [HttpPut("UpdateUser/{id}")]
+        [HttpPut("UpdateUser")]
         [Authorize("InstuctandandadminandstudentPolicy")]
-        public IActionResult UpdateUser(int id, UpdateUserDto UpdateDto)
+        public async Task<IActionResult> UpdateUser([FromForm] UpdateUserDto UpdateDto)
         {
             
-            var user = _context.users.FirstOrDefault(m => m.Id == id);
+            var user = _context.users.FirstOrDefault(m => m.Id == UpdateDto.Id);
             if (user == null)
             {
-               // return NotFound(new { Message = "User Not Found" });
-                return NotFound(ApiResponse<object>.Error(ApiStatusCodes.NotFound,"User Not Found"));
+                return NotFound(new { Message = "User Not Found" });
+
             }
             var loggedInUserId = int.Parse(User.FindFirst("Id")?.Value);
             var loggedInUserRole = User.FindFirst("Role")?.Value;
 
             if (!string.IsNullOrWhiteSpace(UpdateDto.Name))  user.Name = UpdateDto.Name;
-            if (!string.IsNullOrWhiteSpace(UpdateDto.Password)) user.Password = UpdateDto.Password;
-            if (!string.IsNullOrWhiteSpace(UpdateDto.ImageUrl)) user.ImageUrl = UpdateDto.ImageUrl;
+            if (!string.IsNullOrWhiteSpace(UpdateDto.BIO)) user.BIO = UpdateDto.BIO;
+        
+
+            if (!string.IsNullOrWhiteSpace(UpdateDto.Password)) 
+            {if (user.Password != UpdateDto.CurrentPassword)
+                {
+                    return BadRequest(new { statuscode = StatusCodes.Status400BadRequest, message = "please enter avilid Current Password" });
+                 }
+                user.Password = UpdateDto.Password;
+            }
+            if (UpdateDto.Image != null && UpdateDto.Image.Length > 0)
+            {
+                
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                var extension = Path.GetExtension(UpdateDto.Image.FileName).ToLower();
+
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return BadRequest(new { statuscode = StatusCodes.Status400BadRequest, Message = "Only image files are allowed (jpg, png, gif)" });
+                }
+                
+                if (!string.IsNullOrWhiteSpace(user.ImageUrl))
+                {
+                    var oldImagePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", user.ImageUrl.TrimStart('/'));
+                    if (System.IO.File.Exists(oldImagePath))
+                    {
+                        System.IO.File.Delete(oldImagePath);
+                    }
+                }
+
+                string imageUrl = await SaveFile.SaveandUploadFile(UpdateDto.Image, "Images"); // Folder "Images" in wwwroot or storage
+                user.ImageUrl = imageUrl;
+            }
             if (!string.IsNullOrWhiteSpace(UpdateDto.Introduction)) user.Introduction = UpdateDto.Introduction;
             if (!string.IsNullOrWhiteSpace(UpdateDto.CVUrl)) user.CVUrl = UpdateDto.CVUrl;
 
-            if (loggedInUserRole != "admin" && loggedInUserId !=id)
+            if (loggedInUserRole != "admin" && loggedInUserId !=UpdateDto.Id)
             {
-               // return StatusCode(403, new { Message = "You are not authorized to perform this action." });
-                return StatusCode((int)ApiStatusCodes.Forbidden,ApiResponse<object>.Error(ApiStatusCodes.Forbidden, "You are not authorized to perform this action."));
+                return Unauthorized( new { statuscode = StatusCodes.Status401Unauthorized, Message = "You are not authorized to perform this action." });
             }
             if (loggedInUserRole == "admin")
             {
@@ -187,45 +209,46 @@ namespace GraduationProject.Controllers
                 if (UpdateDto.IsApproved.HasValue) user.IsApproved = UpdateDto.IsApproved.Value;
             }
             _context.SaveChanges();
-           // return Ok(new { Message = "User updated successfully" });
-            return Ok(ApiResponse<object>.Ok(null, "User updated successfully"));
+            return Ok(new {Statuscode=StatusCodes.Status200OK , Message = " updated successfully" });
 
         }
-             [HttpPost]
-             [Route("Register")]
-            public async Task<IActionResult> Register([FromForm] RegisterDto registerDto)
+            [HttpPost]
+            [Route("Register")]
+            public async Task<IActionResult> Register(RegisterDto registerDto)
             {
                
-            // Validate the request data
-                if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.Email) || string.IsNullOrWhiteSpace(registerDto.Password))
+            if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.Email) || string.IsNullOrWhiteSpace(registerDto.Password))
                 {
-                    return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Invalid request data"));
+                    return BadRequest(new { Message = "Invalid request data" });
                 }
-                // Validate email domain
-                if (!registerDto.Email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
+           
+
+            var allowedRoles = new[] { "student", "teacher" , "admin"};
+            if (!allowedRoles.Contains(registerDto.Role.ToLower()))
+            {
+                return BadRequest(new { Message = "Invalid role. Allowed roles are: student, teacher ,admin" });
+            }
+
+            // Validate email domain
+            if (!registerDto.Email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
                 {
-                    return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Email must end with @gmail.com"));
+                    return BadRequest(new { Message = "Email must end with @gmail.com" });
                 }
 
                 // Check if the email already exists
                 if (_context.users.Any(u => u.Email == registerDto.Email))
                 {
-                    return Conflict(ApiResponse<object>.Error(ApiStatusCodes.Conflict, "Email already in use"));
+                    return Conflict(new { Message = "Email already in use" });
                 }
-                if (registerDto.Role != "admin" && registerDto.Role != "student" && registerDto.Role != "teacher")
+            // Validate SkillLevel for students
+            if (registerDto.Role == "student")
+            {
+                var allowedSkillLevels = new[] { "Beginner", "Intermediate", "Advanced" };
+                if (string.IsNullOrWhiteSpace(registerDto.SkillLevel) || !allowedSkillLevels.Contains(registerDto.SkillLevel, StringComparer.OrdinalIgnoreCase))
                 {
-                    return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Role must be an admin or student or teacher"));
+                    return BadRequest(new { Message = "SkillLevel must be one of: Beginner, Intermediate, Advanced" });
                 }
-                  // Validate SkillLevel for students
-                if (registerDto.Role == "student")
-                {
-                    var allowedSkillLevels = new[] { "Beginner", "Intermediate", "Advanced" };
-                   if (string.IsNullOrWhiteSpace(registerDto.SkillLevel) || !allowedSkillLevels.Contains(registerDto.SkillLevel, StringComparer.OrdinalIgnoreCase))
-                   {
-                       return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "SkillLevel must be one of: Beginner, Intermediate, Advanced"));
-                   }
-
-                }
+            }
 
 
             string cvUrl = null;
@@ -234,20 +257,20 @@ namespace GraduationProject.Controllers
                 {
                     if (string.IsNullOrWhiteSpace(registerDto.Introducton))
                     {
-                        return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Introduction is required for teachers"));
+                        return BadRequest(new { Message = "Introduction is required for teachers" });
                     }
                     if (registerDto.CV == null)
                     {
-                        return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "CV is required for teachers"));
+                        return BadRequest(new { Message = "CV is required for teachers" });
                     }
 
                     if (registerDto.CV.ContentType != "application/pdf")
                     {
-                        return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Only PDF files are allowed"));
+                        return BadRequest(new { Message = "Only PDF files are allowed" });
                     }
                     if (registerDto.CV.Length > 5 * 1024 * 1024) // 5 MB limit
                     {
-                       return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "File size must be less than 5 MB"));
+                        return BadRequest(new { Message = "File size must be less than 5 MB" });
                     }
 
                     cvUrl = await SaveFile.SaveandUploadFile(registerDto.CV, "CVs");
@@ -265,9 +288,12 @@ namespace GraduationProject.Controllers
                     CVUrl = registerDto.Role == "teacher" ? cvUrl : null,
                     IsApproved = registerDto.Role == "teacher" ? false : true,
                     PreferredCategory = registerDto.Role == "student" ? registerDto.PreferredCategory:null ,
-                    SkillLevel = registerDto.Role== "student"?registerDto.SkillLevel:null
+                    SkillLevel = registerDto.Role== "student"?registerDto.SkillLevel:null,
+                    RegistrationDate=DateTime.UtcNow,
+                    BIO=registerDto.BIO
+                    
                 };
-            
+
 
             // Save the user to the database
             _context.users.Add(newUser);
@@ -281,8 +307,8 @@ namespace GraduationProject.Controllers
                         "Best regards,\nYour Team";
                     await _emailService.SendEmailAsync(registerDto.Email, "Account Pending Approval", teacherEmailBody);
                 }
-                 
-                  return Ok(ApiResponse<object>.Ok(null, "User registered successfully"));
+                // Return a success response
+                return Ok(new { Message = "User registered successfully" });
             }
 
             [HttpPost]
@@ -294,7 +320,7 @@ namespace GraduationProject.Controllers
                 var user = _context.users.FirstOrDefault(u => u.Id == id && u.Role == "teacher");
                 if (user == null)
                 {
-                      return NotFound(ApiResponse<object>.Error(ApiStatusCodes.NotFound, "Teacher not found"));
+                    return NotFound(new { Message = "Teacher not found" });
                 }
 
                 user.IsApproved = true;
@@ -302,7 +328,7 @@ namespace GraduationProject.Controllers
                 // Send email notification to the teacher
                 var emailBody = "Your teacher account has been approved. You can now log in.";
                 await _emailService.SendEmailAsync(user.Email, "Account Approved", emailBody);
-                return Ok(ApiResponse<object>.Ok(null, "Teacher approved successfully."));
+                return Ok(new { Message = "Teacher approved successfully." });
             }
 
             [HttpPost("forgetpassword")]
@@ -312,7 +338,7 @@ namespace GraduationProject.Controllers
                 var user = _context.users.FirstOrDefault(u => u.Email == email);
                 if (user == null)
                 {
-                   return NotFound(ApiResponse<object>.Error(ApiStatusCodes.NotFound, "User not found"));
+                    return NotFound(new { Message = "User not found" });
                 }
                 // Generate a secure token
                 var resetToken = GenerateSecureToken();
@@ -329,7 +355,7 @@ namespace GraduationProject.Controllers
                     "<p><b>Your Company Name</b></p>";
 
                 await _emailService.SendEmailAsync(email, "Password Reset OTP", emailBody);
-                return Ok(ApiResponse<object>.Ok(null, "OTP sent to your email"));
+                return Ok(new { Message = "OTP sent to your email" });
             }
             [HttpPost("VerifyOtp")]
             public IActionResult VerifyOtp(string email, string otp)
@@ -337,20 +363,20 @@ namespace GraduationProject.Controllers
                 // Retrieve the OTP from the cache
                 if (!_memoryCache.TryGetValue(email, out string cachedOtp))
                 {
-                    return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "OTP expired or invalid"));
+                    return BadRequest(new { Message = "OTP expired or invalid" });
                 }
 
                 // Compare the submitted OTP with the cached OTP
                 if (cachedOtp != otp)
                 {
-                    return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Invalid OTP"));
+                    return BadRequest(new { Message = "Invalid OTP" });
                 }
                 // Generate a secure token for password reset
                 var resetToken = GenerateSecureToken();
                 // Store the reset token in the cache with an expiration time
                 _memoryCache.Set(resetToken, email, TimeSpan.FromMinutes(10));
                 // Return the reset token to the user
-                return Ok(ApiResponse<object>.Ok(new { ResetToken = resetToken }, "OTP verified successfully"));
+                return Ok(new { Message = "OTP verified successfully", ResetToken = resetToken });
             }
 
             [HttpPost("ResetPassword")]
@@ -359,13 +385,13 @@ namespace GraduationProject.Controllers
                 // Retrieve the email associated with the reset token
                 if (!_memoryCache.TryGetValue(resetToken, out string email))
                 {
-                   return BadRequest(ApiResponse<object>.Error(ApiStatusCodes.BadRequest, "Invalid or expired reset token"));
+                    return BadRequest(new { Message = "Invalid or expired reset token" });
                 }
-            // Find the user by email
-            var user = _context.users.FirstOrDefault(u => u.Email == email);
+                // Find the user by email
+                var user = _context.users.FirstOrDefault(u => u.Email == email);
                 if (user == null)
                 {
-                   return NotFound(ApiResponse<object>.Error(ApiStatusCodes.NotFound, "User not found"));
+                    return NotFound(new { Message = "User not found" });
                 }
 
                 // Update the user's password
@@ -375,7 +401,7 @@ namespace GraduationProject.Controllers
                 // Remove the reset token from the cache
                 _memoryCache.Remove(resetToken);
 
-                return Ok(ApiResponse<object>.Ok(null, "Password reset successfully"));
+                return Ok(new { Message = "Password reset successfully" });
             }
 
             private string GenerateOtp()
@@ -409,5 +435,6 @@ namespace GraduationProject.Controllers
                 );
                 return new JwtSecurityTokenHandler().WriteToken(token);
             }
+
         }
     } 

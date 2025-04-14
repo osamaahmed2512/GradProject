@@ -21,6 +21,7 @@ namespace GraduationProject.Controllers
         [HttpPost]
         [Route("AddSection")]
         [Authorize(Policy = "InstructorAndAdminPolicy")]
+        [ServiceFilter(typeof(CustomModelStateFilter))]
         public async Task<IActionResult> AddSection([FromBody] SectionDto sectionDto)
         {
             var course = await _context.courses.FindAsync(sectionDto.CourseId);

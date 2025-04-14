@@ -4,6 +4,7 @@ using GraduationProject.data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GraduationProject.Migrations
 {
     [DbContext(typeof(AppDBContext))]
-    partial class AppDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250410022214_addBIOtouser")]
+    partial class addBIOtouser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -116,50 +119,6 @@ namespace GraduationProject.Migrations
                     b.HasIndex("TagId");
 
                     b.ToTable("CourseTags");
-                });
-
-            modelBuilder.Entity("GraduationProject.models.FlashCard", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Answer")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Difficulty")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("LastModified")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("LastModifiedBy")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Question")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Flashcards");
                 });
 
             modelBuilder.Entity("GraduationProject.models.Lesson", b =>
@@ -376,13 +335,9 @@ namespace GraduationProject.Migrations
                     b.Property<string>("SkillLevel")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.HasKey("Id");
 
-                    b.ToTable("User");
+                    b.ToTable("users");
                 });
 
             modelBuilder.Entity("GraduationProject.models.VideoProgress", b =>
@@ -459,17 +414,6 @@ namespace GraduationProject.Migrations
                     b.Navigation("Course");
 
                     b.Navigation("Tag");
-                });
-
-            modelBuilder.Entity("GraduationProject.models.FlashCard", b =>
-                {
-                    b.HasOne("GraduationProject.models.User", "User")
-                        .WithMany("FlashCards")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GraduationProject.models.Lesson", b =>
@@ -598,8 +542,6 @@ namespace GraduationProject.Migrations
             modelBuilder.Entity("GraduationProject.models.User", b =>
                 {
                     b.Navigation("Courses");
-
-                    b.Navigation("FlashCards");
 
                     b.Navigation("Rating");
                 });

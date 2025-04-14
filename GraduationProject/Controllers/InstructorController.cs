@@ -145,11 +145,12 @@ namespace GraduationProject.Controllers
 
         [HttpPost]
         [Route("AddCourse")]
-        [Authorize(Policy = "InstructorAndAdminPolicy")] // Ensures only instructors can access this endpoint
+        [Authorize(Policy = "InstructorAndAdminPolicy")] 
+        [ServiceFilter(typeof(CustomModelStateFilter))]
         public async Task<IActionResult> AddCourse([FromForm] CourseDto courseDto)
-        {// Validate input
-            if (courseDto.Image == null || courseDto.Image.Length == 0)
-                return BadRequest("Image is required.");
+        {
+           
+
             // Generate a unique file name
             var fileName = $"{Guid.NewGuid()}{Path.GetExtension(courseDto.Image.FileName)}";
 
@@ -169,18 +170,18 @@ namespace GraduationProject.Controllers
             var userRole = User.Claims.FirstOrDefault(c => c.Type == "Role")?.Value;
 
             if (userRole != "teacher")
-                return Unauthorized(new { Message = "Only instructors can add courses" });
+                return Unauthorized(new {StatusCode= StatusCodes.Status401Unauthorized, Message = "Only instructors can add courses" });
 
             // Create a new Course object
             var course = new GraduationProject.models.Course
             {
                 Name = courseDto.Name,
                 Describtion = courseDto.Describtion,
-                CourseCategory= courseDto.CourseCategory,
+                CourseCategory= courseDto.CourseCategory.ToLower(),
                 Instructor_Id = instructorId,
                 ImgUrl = $"/courseImages/{fileName}",
                 CourseTags = new List<CourseTag>(),
-                LevelOfCourse = courseDto.LevelOfCourse,
+                LevelOfCourse = courseDto.LevelOfCourse.ToLower(),
                 Price= courseDto.Price,
                 Discount= courseDto.Discount ??0,
                 Sections = new List<Section>()
@@ -210,7 +211,7 @@ namespace GraduationProject.Controllers
             _context.courses.Add(course);
             await _context.SaveChangesAsync();
 
-            return Ok(new {id = course.Id, Message = "Course added successfully" });
+            return Ok(new {id = course.Id, Message = "Course added successfully",statuscode=StatusCodes.Status200OK });
         }
         [HttpDelete]
         [Route("DeleteCourseById/{id}")]
@@ -284,7 +285,7 @@ namespace GraduationProject.Controllers
             var instructorIdClaim = User.FindFirst("Id")?.Value;
             if (string.IsNullOrEmpty(instructorIdClaim))
             {
-                return Unauthorized(new { Message = "Invalid token" });
+                return Unauthorized(new {status=StatusCodes.Status403Forbidden, Message = "Invalid token" });
             }
 
             int instructorId = int.Parse(instructorIdClaim);
@@ -293,7 +294,7 @@ namespace GraduationProject.Controllers
                 .Where(s => _context.courses.Any(c => c.Id == s.CourseId && c.Instructor_Id == instructorId))
                 .CountAsync();
 
-            return Ok(new { TotalEnrollments = totalEnrollments });
+            return Ok(new {statuscode=StatusCodes.Status200OK , TotalEnrollments = totalEnrollments });
         }
 
 

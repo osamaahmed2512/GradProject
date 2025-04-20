@@ -4,6 +4,7 @@ using GraduationProject.data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GraduationProject.Migrations
 {
     [DbContext(typeof(AppDBContext))]
-    partial class AppDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250419175138_addcontactus")]
+    partial class addcontactus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,6 +24,28 @@ namespace GraduationProject.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("GraduationProject.Controllers.ContactUs", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("emailforcontact")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("userId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("userId");
+
+                    b.ToTable("ContactUs");
+                });
 
             modelBuilder.Entity("GraduationProject.models.Answer", b =>
                 {
@@ -45,35 +70,6 @@ namespace GraduationProject.Migrations
                     b.HasIndex("QuestionId");
 
                     b.ToTable("Answers");
-                });
-
-            modelBuilder.Entity("GraduationProject.models.Contactus", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("date")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Contactus");
                 });
 
             modelBuilder.Entity("GraduationProject.models.Course", b =>
@@ -445,6 +441,17 @@ namespace GraduationProject.Migrations
                     b.ToTable("VideoProgress");
                 });
 
+            modelBuilder.Entity("GraduationProject.Controllers.ContactUs", b =>
+                {
+                    b.HasOne("GraduationProject.models.User", "user")
+                        .WithMany("MyProperty")
+                        .HasForeignKey("userId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("user");
+                });
+
             modelBuilder.Entity("GraduationProject.models.Answer", b =>
                 {
                     b.HasOne("GraduationProject.models.Question", "Question")
@@ -454,17 +461,6 @@ namespace GraduationProject.Migrations
                         .IsRequired();
 
                     b.Navigation("Question");
-                });
-
-            modelBuilder.Entity("GraduationProject.models.Contactus", b =>
-                {
-                    b.HasOne("GraduationProject.models.User", "user")
-                        .WithMany("ContactUs")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("user");
                 });
 
             modelBuilder.Entity("GraduationProject.models.Course", b =>
@@ -633,11 +629,11 @@ namespace GraduationProject.Migrations
 
             modelBuilder.Entity("GraduationProject.models.User", b =>
                 {
-                    b.Navigation("ContactUs");
-
                     b.Navigation("Courses");
 
                     b.Navigation("FlashCards");
+
+                    b.Navigation("MyProperty");
 
                     b.Navigation("Rating");
                 });

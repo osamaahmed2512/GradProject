@@ -8,9 +8,9 @@
         public string FileBath { get; set; }
         public int SectionId { get; set; }
         public double DurationInHours { get; set; }
-        public Section Section { get; set; }
+        public virtual Section Section { get; set; }
 
         //public List<LessonTag> LessonTags { get; set; }
-        public List<Question> Questions { get; set; } = new List<Question>();
+        public virtual List<Question> Questions { get; set; } = new List<Question>();
     }
 }

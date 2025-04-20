@@ -1,4 +1,6 @@
-﻿namespace GraduationProject.models
+﻿using System.Text.Json.Serialization;
+
+namespace GraduationProject.models
 {
     public class Course
     {
@@ -16,12 +18,13 @@
         public double Price { get; set; }
         public double Discount { get; set; } = 0;
         public double DiscountedPrice  => Price - (Price * Discount / 100);
-        public List<CourseTag> CourseTags { get; set; }
-        public User Instructor { get; set; }
+       
+        public virtual List<CourseTag> CourseTags { get; set; }
+        public virtual User Instructor { get; set; }
 
         public double AverageRating { get; set; }
         public List<Rating> Rating { get; set; }
-        public List<Section> Sections { get; set; } = new List<Section>();
+        public virtual List<Section> Sections { get; set; } = new List<Section>();
 
     }
 }

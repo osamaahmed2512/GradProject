@@ -10,8 +10,9 @@ namespace GraduationProject.Dto
         [JsonPropertyName("Name")]
         public string Name { get; set; }
 
-        [JsonPropertyName("Describtion")]
-        public string Description { get; set; }
+
+        [JsonPropertyName("describtion")]  
+        public string Describtion { get; set; }
 
         [JsonPropertyName("Keywords")]
         public string Keywords { get; set; }
@@ -24,5 +25,9 @@ namespace GraduationProject.Dto
 
         [JsonPropertyName("Average Rating")]
         public double AverageRating { get; set; }
+
+
+        [JsonPropertyName("imgUrl")]
+        public string ImgUrl { get; set; }
     }
 }

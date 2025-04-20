@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using GraduationProject.consts;
+using System.Linq.Expressions;
 
 namespace GraduationProject.Services
 {
@@ -6,12 +7,18 @@ namespace GraduationProject.Services
     {
         T GetById(int id);
         Task<T> GetByIdAsync(int id);
-        IEnumerable<T> FindAll(Expression<Func<T, bool>> criteria, string[] includes = null);
+        IQueryable<T> Query();
+        IEnumerable<T> GEtAll();
+        Task<IEnumerable<T>> GEtAllasync();
+        IEnumerable<T> Find(Expression<Func<T, bool>> criteria, string[] includes = null);
+        public IEnumerable<T> FindAll(Expression<Func<T, bool>>? criteria, string[] includes = null, Expression<Func<T, object>> orderBy = null,
+            string? orderByDirection = Sorting.Ascending, int? skip = null, int? take = null);
         Task<IEnumerable<T>> FindAllAsync(Expression<Func<T, bool>> criteria, string[] includes = null);
+        Task<IEnumerable<T>> GEtAllasync(Expression<Func<T, object>> orderBy , string sortingorder = "Descending", string[] includes = null, int? skip = null, int? take = null);
         void Add(T entity);
-        void AddAsync(T entity);
+        Task AddAsync(T entity);
         void AddRange(IEnumerable<T> entities);
-
+        Task<int> Count(Expression<Func<T, bool>>? predicate=null);
         Task<T?> FindOneAsync(Expression<Func<T, bool>> predicate);
         Task Delete(T entity);
         Task DeleteRange(IEnumerable<T> entities);

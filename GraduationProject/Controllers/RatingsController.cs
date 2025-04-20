@@ -110,8 +110,8 @@ namespace GraduationProject.Controllers
                 CourseId = ratingdto.CourseId,
                 Stars = ratingdto.Stars,
                 Review = ratingdto.Review,
-                RatingDate = DateTime.UtcNow
-
+                RatingDate = DateTime.UtcNow,
+                CompletionStatus = "No"
             };
             _context.Rating.Add(rating);
             await _context.SaveChangesAsync();

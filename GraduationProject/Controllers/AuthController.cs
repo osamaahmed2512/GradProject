@@ -1,8 +1,10 @@
 ﻿using Azure.Core;
+using GraduationProject.consts;
 using GraduationProject.data;
 using GraduationProject.Dto;
 using GraduationProject.Helpers;
 using GraduationProject.models;
+using GraduationProject.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -13,6 +15,7 @@ using Microsoft.IdentityModel.Tokens;
 using NuGet.Protocol.Plugins;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Security.Claims;
 using System.Text;
 
@@ -28,12 +31,15 @@ namespace GraduationProject.Controllers
         private readonly IConfiguration _configuration;
         private readonly EmailService _emailService;
         private readonly IMemoryCache _memoryCache;
-        public AuthController(AppDBContext context, IConfiguration configuration, EmailService emailService, IMemoryCache memoryCache)
+        private readonly IUnitOfWork _unitofwork;
+        public AuthController(AppDBContext context, IConfiguration configuration, EmailService emailService,
+            IMemoryCache memoryCache , IUnitOfWork unitofwork)
         {
             _context = context;
             _configuration = configuration;
             _emailService = emailService;
             _memoryCache = memoryCache;
+            _unitofwork = unitofwork;
         }
 
         [HttpPost]
@@ -48,7 +54,7 @@ namespace GraduationProject.Controllers
             
             if (user != null) {
                 
-                if (user.Role == "teacher" && !user.IsApproved)
+                if ( !user.IsApproved)
                 {
                     return Unauthorized(new { statuscode = StatusCodes.Status401Unauthorized, Message = "Your account is pending approval by the admin." });
                 }
@@ -137,16 +143,68 @@ namespace GraduationProject.Controllers
         [HttpGet]
         [Route("Getallusers")]
         [Authorize(Policy = "AdminPolicy")]
-        public IActionResult Getallusers()
-        { var users = _context.users.AsNoTracking().ToList();
-
-            if (users == null || users.Count() == 0)
+        public async Task<IActionResult> Getallusers(
+            [FromQuery] string? role,
+            [FromQuery] string? search,
+            [FromQuery] int page=1,
+            [FromQuery] int pageSize=10,
+            [FromQuery] string? orderBy = "Id",
+            [FromQuery] string? orderDir = "ASC",
+            [FromQuery] bool? isApproved = null
+            )
+        {
+            
+            var validOrderByFields = new[] { "Id", "Name","Role" , "IsApproved" , "RegistrationDate" };
+            if (!validOrderByFields.Contains(orderBy))
             {
-                return NotFound(new { message = "No User Found" });
+                return BadRequest(new { message = "Invalid orderBy field." });
             }
-            return Ok(users);
+           
+            orderDir = orderDir?.ToUpper() == "DESC" ? Sorting.Descending : Sorting.Ascending;
+
+
+            Expression<Func<User, bool>> criteria = u =>
+       (string.IsNullOrEmpty(search) || u.Name.Contains(search) || u.Email.Contains(search)) &&
+       (string.IsNullOrEmpty(role) || u.Role == role)&&
+       (!isApproved.HasValue || u.IsApproved == isApproved.Value);
+
+            var users =  _unitofwork.Users.FindAll(
+                criteria: criteria,
+                orderBy: u => EF.Property<object>(u, orderBy),
+                orderByDirection: orderDir,
+                skip: (page - 1) * pageSize,
+                take: pageSize
+            );
+
+            
+            var totalCount = _unitofwork.Users.FindAll(criteria).Count();
+
+            return Ok(new
+            {
+                data = users,
+                page,
+                pageSize,
+                totalCount
+            });
 
         }
+
+        [HttpGet]
+        [Route("GetallCountofusers")]
+        [Authorize(Policy = "AdminPolicy")]
+        public async Task<IActionResult> Getallusersonsytem(
+               [FromQuery] bool? IsActive,
+               [FromQuery] string? Role 
+             )
+        {
+            var students =await _unitofwork.Users.Count(a =>
+                (string.IsNullOrEmpty(Role) || a.Role == Role)&&
+                (!IsActive.HasValue || a.IsApproved == IsActive)
+                );
+
+            return Ok(students);
+        }
+
 
         [HttpPut("UpdateUser")]
         [Authorize("InstuctandandadminandstudentPolicy")]
@@ -216,30 +274,8 @@ namespace GraduationProject.Controllers
             [Route("Register")]
             public async Task<IActionResult> Register(RegisterDto registerDto)
             {
-               
-            if (registerDto == null || string.IsNullOrWhiteSpace(registerDto.Email) || string.IsNullOrWhiteSpace(registerDto.Password))
-                {
-                    return BadRequest(new { Message = "Invalid request data" });
-                }
-           
 
-            var allowedRoles = new[] { "student", "teacher" , "admin"};
-            if (!allowedRoles.Contains(registerDto.Role.ToLower()))
-            {
-                return BadRequest(new { Message = "Invalid role. Allowed roles are: student, teacher ,admin" });
-            }
 
-            // Validate email domain
-            if (!registerDto.Email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
-                {
-                    return BadRequest(new { Message = "Email must end with @gmail.com" });
-                }
-
-                // Check if the email already exists
-                if (_context.users.Any(u => u.Email == registerDto.Email))
-                {
-                    return Conflict(new { Message = "Email already in use" });
-                }
             // Validate SkillLevel for students
             if (registerDto.Role == "student")
             {
@@ -286,7 +322,7 @@ namespace GraduationProject.Controllers
                     ImageUrl = null,
                     Introduction = registerDto.Role == "teacher" ? registerDto.Introducton : null,
                     CVUrl = registerDto.Role == "teacher" ? cvUrl : null,
-                    IsApproved = registerDto.Role == "teacher" ? false : true,
+                    IsApproved = registerDto.Role == "student" ? true : false,
                     PreferredCategory = registerDto.Role == "student" ? registerDto.PreferredCategory:null ,
                     SkillLevel = registerDto.Role== "student"?registerDto.SkillLevel:null,
                     RegistrationDate=DateTime.UtcNow,
@@ -311,7 +347,48 @@ namespace GraduationProject.Controllers
                 return Ok(new { Message = "User registered successfully" });
             }
 
-            [HttpPost]
+        [HttpPost]
+        [Route("AdminRegister")]
+        [Authorize(Policy = "AdminPolicy")]
+        public async Task<IActionResult> AdminRegister(RegisterDto registerDto)
+        {
+
+            if (registerDto.Role == "student")
+            {
+                var allowedSkillLevels = new[] { "Beginner", "Intermediate", "Advanced" };
+                if (string.IsNullOrWhiteSpace(registerDto.SkillLevel) || !allowedSkillLevels.Contains(registerDto.SkillLevel, StringComparer.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new { Message = "SkillLevel must be one of: Beginner, Intermediate, Advanced" });
+                }
+            }
+
+ 
+            var newUser = new User
+            {
+                Name = registerDto.Name,
+                Email = registerDto.Email,
+                Password = registerDto.Password,
+                Role = registerDto.Role,
+                ImageUrl = null,
+                Introduction = null,
+                CVUrl =null,
+                IsApproved = true, 
+                PreferredCategory = registerDto.Role == "student" ? registerDto.PreferredCategory : null,
+                SkillLevel = registerDto.Role == "student" ? registerDto.SkillLevel : null,
+                RegistrationDate = DateTime.Now,
+                BIO = registerDto.BIO
+            };
+
+            _context.users.Add(newUser);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "User created successfully", newUser.Id });
+        }
+
+
+
+
+        [HttpPost]
             [Route("ApproveTeacher/{id}")]
             [Authorize(Policy = "AdminPolicy")]
 

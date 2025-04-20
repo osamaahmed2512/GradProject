@@ -1,4 +1,6 @@
-﻿namespace GraduationProject.models
+﻿using GraduationProject.Controllers;
+
+namespace GraduationProject.models
 {
     public class User
     {
@@ -18,5 +20,7 @@
         public List<Course> Courses { get; set; }
         public List<FlashCard> FlashCards { get; set; }
         public ICollection<Rating> Rating { get; set; }
+
+        public virtual List<Contactus>? ContactUs { get; set; }
     }
 }

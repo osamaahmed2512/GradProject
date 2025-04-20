@@ -84,6 +84,8 @@ namespace GraduationProject
             })
                     .AddJsonOptions(options =>
                     {
+                        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                        options.JsonSerializerOptions.WriteIndented = true;
                         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
                         options.JsonSerializerOptions.PropertyNamingPolicy = new JsonSnakeCaseNamingPolicy();
                         options.JsonSerializerOptions.DictionaryKeyPolicy = new JsonSnakeCaseNamingPolicy();
@@ -122,6 +124,11 @@ namespace GraduationProject
                     policy.RequireAuthenticatedUser(); // Ensure the user is authenticated
                     policy.RequireClaim("Role", "teacher","admin"); // Ensure the user has the "Role" claim with value "teacher"
                 });
+                options.AddPolicy("InstructorAndUserPolicy", policy =>
+                {
+                    policy.RequireAuthenticatedUser(); 
+                    policy.RequireClaim("Role", "teacher", "student"); // Ensure the user has the "Role" claim with value "teacher"
+                });
                 options.AddPolicy("AdminPolicy", policy =>
                 {
                     policy.RequireAuthenticatedUser(); // Ensure the user is authenticated
@@ -142,6 +149,7 @@ namespace GraduationProject
 
             builder.Services.AddScoped(typeof(IGenaricRepository<>), typeof(GenaricRepository<>));
 
+            builder.Services.AddScoped<IUnitOfWork,UnitOfWork>();
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<EmailService>();
             // Add services to the container.
